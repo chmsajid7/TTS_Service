@@ -1,5 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.CognitiveServices.Speech;
+﻿using Microsoft.CognitiveServices.Speech;
+using Microsoft.CognitiveServices.Speech.Audio;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using TTS_Service.Context;
@@ -77,6 +77,22 @@ public class ConverterService : IConverterService
 
         return audioData;
     }
+
+    public async Task<string> ConvertToText(IFormFile audio)
+    {
+        var config = SpeechConfig.FromSubscription(_subscriptionKey, _region);
+
+        using var ms = new MemoryStream();
+        await audio.CopyToAsync(ms);
+        ms.Position = 0;
+
+        using var recognizer = new SpeechRecognizer(config);
+        var audioConfig = AudioConfig.FromStreamInput(new BinaryAudioStreamReader(ms));
+        var result = await recognizer.RecognizeOnceAsync(audioConfig);
+        return result.Text;
+    }
+
+    // HELPER METHODS
 
     private async Task<byte[]> GetSpeechAsync(string text)
     {

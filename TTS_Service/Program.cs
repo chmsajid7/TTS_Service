@@ -11,6 +11,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddScoped<IOpenAIService, OpenAIService>();
 builder.Services.AddScoped<IConverterService, ConverterService>();
 builder.Services.AddMemoryCache();
 
