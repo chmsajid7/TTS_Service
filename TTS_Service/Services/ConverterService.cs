@@ -80,15 +80,23 @@ public class ConverterService : IConverterService
 
     public async Task<string> ConvertToText(IFormFile audio)
     {
-        var config = SpeechConfig.FromSubscription(_subscriptionKey, _region);
+        if (audio is null)
+        {
+            return string.Empty;
+        }
 
-        using var ms = new MemoryStream();
-        await audio.CopyToAsync(ms);
-        ms.Position = 0;
+        using var audioStream = new MemoryStream();
+        await audio.CopyToAsync(audioStream);
+        audioStream.Position = 0;
 
-        using var recognizer = new SpeechRecognizer(config);
-        var audioConfig = AudioConfig.FromStreamInput(new BinaryAudioStreamReader(ms));
-        var result = await recognizer.RecognizeOnceAsync(audioConfig);
+        var pushStream = AudioInputStream.CreatePushStream(AudioStreamFormat.GetWaveFormatPCM(16000, 16, 1));
+        pushStream.Write(audioStream.ToArray());
+
+        var audioConfig = AudioConfig.FromStreamInput(pushStream);
+        var speechConfig = SpeechConfig.FromSubscription(_subscriptionKey, _region);
+
+        using var recognizer = new SpeechRecognizer(speechConfig, audioConfig);
+        var result = await recognizer.RecognizeOnceAsync();
         return result.Text;
     }
 

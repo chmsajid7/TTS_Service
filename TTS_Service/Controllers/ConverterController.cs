@@ -28,10 +28,10 @@ public class ConverterController : ControllerBase
         return File(audioData, "audio/wav");
     }
 
-    [HttpGet("tts/save")]
+    [HttpPost("stt")]
     public async Task<IActionResult> ConvertToText(IFormFile audio)
     {
-        var audioData = await _converterService.ConvertToSpeechAndSave(text).ConfigureAwait(false);
-        return File(audioData, "audio/wav");
+        var text = await _converterService.ConvertToText(audio).ConfigureAwait(false);
+        return Ok(text);
     }
 }
