@@ -1,5 +1,4 @@
-﻿using Google.Protobuf.WellKnownTypes;
-using OpenAI_API;
+﻿using OpenAI_API;
 using OpenAI_API.Completions;
 using OpenAI_API.Models;
 
@@ -20,7 +19,7 @@ public class OpenAIService : IOpenAIService
 
         var completionRequest = new CompletionRequest
         {
-            Model = "text-davinci-003",
+            Model = Model.DavinciText,
             Prompt = text,
             MaxTokens = 300,
             Temperature = 0.5,
