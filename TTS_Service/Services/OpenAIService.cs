@@ -7,56 +7,35 @@ namespace TTS_Service.Services;
 
 public class OpenAIService : IOpenAIService
 {
-    private const string COMPLETIONS_MODEL = "text-davinci-002";
-    private const string OPENAI_API_KEY = "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";
+    private readonly string _openApiKey;
 
-    private readonly IConverterService _converterService;
-
-    public OpenAIService(IConverterService converterService)
+    public OpenAIService(IConfiguration configuration)
     {
-        _converterService = converterService;
+        _openApiKey = configuration.GetValue<string>("OpenAI:Key");
     }
 
     public async Task<string> GenerateResponseAsync(string text)
     {
-        var openAiApi = new OpenAIAPI(OPENAI_API_KEY);
-
-        string speech = "";
-
-        await foreach (var token in openAiApi.Completions.StreamCompletionEnumerableAsync(new CompletionRequest(
-            prompt: text,
-            model: Model.DavinciText,
-            max_tokens: 300,
-            temperature: 0.5,
-            presencePenalty: 0.1, 
-            frequencyPenalty: 0.1)))
-        {
-            string word = token.ToString();
-            speech = $"{speech} {word}";
-
-            if (word.Contains("/n") || word.Contains(".") || word.Contains(",") || word.Contains(":"))
-            {
-                await _converterService.ConvertToSpeech(speech);
-                speech = "";
-            }
-        }
-
-
+        var openAiApi = new OpenAIAPI(_openApiKey);
 
         var completionRequest = new CompletionRequest
         {
             Model = "text-davinci-003",
-            Prompt = "My name is Roger and I am a principal software engineer at Salesforce.  This is my resume:",
+            Prompt = text,
             MaxTokens = 300,
             Temperature = 0.5,
             PresencePenalty= 0.1,
             FrequencyPenalty= 0.1,
         };
 
-        var response = await openAiApi.Completions.CreateCompletionAsync(completionRequest).ConfigureAwait(false);
+        string result = "";
 
-        var res = response.Completions.FirstOrDefault().Text;
+        await foreach (var token in openAiApi.Completions.StreamCompletionEnumerableAsync(completionRequest))
+        {
+            string word = token.ToString();
+            result = $"{result} {word}";
+        }
 
-        return res;
+        return result;
     }
 }

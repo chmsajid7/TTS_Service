@@ -32,6 +32,6 @@ public class ConverterController : ControllerBase
     public async Task<IActionResult> ConvertToText(IFormFile audio)
     {
         var text = await _converterService.ConvertToText(audio).ConfigureAwait(false);
-        return Ok(text);
+        return text is not null ? Ok(text) : BadRequest("Speech must be a valid wav format audio");
     }
 }
