@@ -122,9 +122,12 @@ public class ConverterService : IConverterService
 
     private async Task<byte[]> GetSpeechAsync(string text)
     {
-        using var synthesizer = new SpeechSynthesizer(_speechConfig);
-        using var result = await synthesizer.SpeakTextAsync(text).ConfigureAwait(false);
-
-        return result.AudioData;
+        using (var synthesizer = new SpeechSynthesizer(_speechConfig))
+        {
+            using (var result = await synthesizer.StartSpeakingTextAsync(text).ConfigureAwait(false))
+            {
+                return result.AudioData;
+            }
+        }
     }
 }
