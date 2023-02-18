@@ -20,8 +20,8 @@ public class BrainController : ControllerBase
     [HttpGet("brain")]
     public async Task<IActionResult> GenerateResponseAsync(string text)
     {
-        var audioData = await _openAIService.GenerateResponseAsync(text).ConfigureAwait(false);
-        return File(audioData, "audio/wav");
+        var result = await _openAIService.GenerateResponseAsync(text).ConfigureAwait(false);
+        return Ok(result);
     }
 
     [HttpGet]
