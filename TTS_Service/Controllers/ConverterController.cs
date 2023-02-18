@@ -18,7 +18,6 @@ public class ConverterController : ControllerBase
     public async Task<IActionResult> ConvertToSpeech(string text)
     {
         var audioData = await _converterService.ConvertToSpeech(text).ConfigureAwait(false);
-
         return File(audioData, "audio/wav");
     }
 
@@ -26,7 +25,13 @@ public class ConverterController : ControllerBase
     public async Task<IActionResult> ConvertToSpeechAndSave(string text)
     {
         var audioData = await _converterService.ConvertToSpeechAndSave(text).ConfigureAwait(false);
-
         return File(audioData, "audio/wav");
+    }
+
+    [HttpPost("stt")]
+    public async Task<IActionResult> ConvertToText(IFormFile audio)
+    {
+        var text = await _converterService.ConvertToText(audio).ConfigureAwait(false);
+        return text is not null ? Ok(text) : BadRequest("Speech must be a valid wav format audio");
     }
 }
