@@ -34,7 +34,17 @@ var language = builder.Configuration.GetValue<string>("CognitiveService:Language
 var speechConfig = SpeechConfig.FromSubscription(subscriptionKey, region);
 speechConfig.SpeechRecognitionLanguage = language;
 
+speechConfig.SetSpeechSynthesisOutputFormat(SpeechSynthesisOutputFormat.Audio24Khz48KBitRateMonoMp3);
+
 builder.Services.AddSingleton(speechConfig);
+
+builder.Services.AddApplicationInsightsTelemetry(options =>
+{
+    options.ConnectionString = builder.Configuration.GetValue<string>("APPLICATIONINSIGHTS_CONNECTION_STRING");
+});
+
+builder.Services.AddHttpClient();
+
 
 //
 

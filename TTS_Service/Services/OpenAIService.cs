@@ -1,6 +1,8 @@
 ﻿using OpenAI_API;
 using OpenAI_API.Completions;
 using OpenAI_API.Models;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace TTS_Service.Services;
 
@@ -15,6 +17,8 @@ public class OpenAIService : IOpenAIService
 
     public async Task<string> GenerateResponseAsync(string text)
     {
+        text = Regex.Replace(text, "[^0-9a-zA-Z]+", string.Empty);
+
         var openAiApi = new OpenAIAPI(_openApiKey);
 
         var completionRequest = new CompletionRequest

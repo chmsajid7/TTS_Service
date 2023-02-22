@@ -24,19 +24,24 @@ public class BrainController : ControllerBase
         return Ok(result);
     }
 
-    [HttpGet]
+    [HttpPost]
     public async Task<IActionResult> RunProcessAsync(IFormFile speech)
     {
         var text = await _converterService.ConvertToText(speech).ConfigureAwait(false);
 
-        if (text is null)
+        if (text == "NotValid")
         {
             return BadRequest("Speech must be a valid wav format audio");
         }
 
+        if (text is null)
+        {
+            return Ok("Unable to recogize your speech");
+        }
+
         if (text == "")
         {
-            return NoContent();
+            return Ok("Unable to recogize your speech");
         }
 
         var result = await _openAIService.GenerateResponseAsync(text).ConfigureAwait(false);

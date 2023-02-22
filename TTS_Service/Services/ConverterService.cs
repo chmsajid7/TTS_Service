@@ -1,31 +1,50 @@
 ﻿using Microsoft.CognitiveServices.Speech;
 using Microsoft.CognitiveServices.Speech.Audio;
+using Microsoft.CognitiveServices.Speech.Translation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
-using NAudio.Wave;
-using System.IO;
+using MySqlX.XDevAPI;
+using Newtonsoft.Json;
 using TTS_Service.Context;
+using TTS_Service.Models;
+using static Org.BouncyCastle.Math.EC.ECCurve;
 
 namespace TTS_Service.Services;
 
 public class ConverterService : IConverterService
 {
+    private readonly ILogger<ConverterService> _logger;
     private readonly IMemoryCache _memoryCache;
+    private readonly IConfiguration _configuration;
     private readonly SpeechConfig _speechConfig;
     private readonly ConverterDbContext _dbContext;
     private readonly MemoryCacheEntryOptions _memoryCacheOptions;
+    private readonly HttpClient _client;
+
+    private readonly string _language;
 
     public ConverterService(
         IMemoryCache memoryCache,
         ConverterDbContext dbContext,
-        SpeechConfig speechConfig)
+        SpeechConfig speechConfig,
+        IConfiguration configuration,
+        ILogger<ConverterService> logger,
+        IHttpClientFactory httpClientFactory)
     {
+        _client = httpClientFactory.CreateClient();
+        _client.BaseAddress = new Uri($"https://{configuration.GetValue<string>("CognitiveService:Region")}.stt.speech.microsoft.com/" +
+            $"speech/recognition/conversation/cognitiveservices/v1" +
+            $"?language={configuration.GetValue<string>("CognitiveService:Language")}");
+        _client.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", configuration.GetValue<string>("CognitiveService:SubscriptionKey"));
+        _configuration = configuration;
         _dbContext = dbContext;
         _memoryCache = memoryCache;
         _memoryCacheOptions = new MemoryCacheEntryOptions()
             .SetAbsoluteExpiration(TimeSpan.FromMinutes(10))
             .SetPriority(CacheItemPriority.Normal);
+        _language = configuration.GetValue<string>("CognitiveService:Language");
         _speechConfig = speechConfig;
+        _logger = logger;
     }
 
     public async Task<byte[]> ConvertToSpeech(string text)
@@ -78,55 +97,92 @@ public class ConverterService : IConverterService
     {
         if (audio is null || !audio.ContentType.Equals("audio/wave"))
         {
-            return null;
+            return "NotValid";
         }
 
-        using var audioStream = new MemoryStream();
-        await audio.CopyToAsync(audioStream);
-        audioStream.Position = 0;
-        //
+        using var ms = new MemoryStream();
+        await audio.CopyToAsync(ms);
 
+        var audioContent = new ByteArrayContent(ms.ToArray());
+        audioContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("audio/wav");
 
-        
+        var response = await _client.PostAsync(string.Empty, audioContent);
 
-
-        //
-
-
-        var pushStream = AudioInputStream.CreatePushStream(AudioStreamFormat.GetWaveFormatPCM(16000, 16, 1));
-        pushStream.Write(audioStream.ToArray());
-
-        var audioConfig = AudioConfig.FromStreamInput(pushStream);
-
-        using var recognizer = new SpeechRecognizer(_speechConfig, audioConfig);
-        var result = await recognizer.RecognizeOnceAsync();
-
-        if (result.Reason == ResultReason.RecognizedSpeech)
+        if (response.IsSuccessStatusCode)
         {
-            Console.WriteLine($"Transcription: {result.Text}");
-        }
-        else if (result.Reason == ResultReason.NoMatch)
-        {
-            Console.WriteLine($"No speech was recognized.");
-        }
-        else if (result.Reason == ResultReason.Canceled)
-        {
-            var cancellation = CancellationDetails.FromResult(result);
-            Console.WriteLine($"Recognition was canceled. Reason: {cancellation.Reason}. Error Details: {cancellation.ErrorDetails}");
+            var responseContent = await response.Content.ReadAsStringAsync();
+
+            var result = JsonConvert.DeserializeObject<SttResult>(responseContent);
+
+            return result.DisplayText;
         }
 
-        return result.Text;
+        return "";
+
+
+
+
+
+        //if (audio is null || !audio.ContentType.Equals("audio/wave"))
+        //{
+        //    return null;
+        //}
+
+        //using var audioStream = new MemoryStream();
+        //await audio.CopyToAsync(audioStream);
+        //audioStream.Position = 0;
+
+        //var audioFormat = AudioStreamFormat.GetWaveFormatPCM(16000, 16, 1);
+
+        //var pushStream = AudioInputStream.CreatePushStream(audioFormat);
+        //pushStream.Write(audioStream.ToArray());
+        //pushStream.Close();
+
+        //var audioConfig = AudioConfig.FromStreamInput(pushStream);
+
+        //using var recognizer = new SpeechRecognizer(_speechConfig, audioConfig);
+        //var result = await recognizer.RecognizeOnceAsync();
+
+        //if (result.Reason == ResultReason.Canceled)
+        //{
+        //    var cancellation = CancellationDetails.FromResult(result);
+        //    Console.WriteLine($"CANCELED: Reason={cancellation.Reason}");
+
+        //    if (cancellation.Reason == CancellationReason.Error)
+        //    {
+        //        Console.WriteLine($"CANCELED: ErrorCode={cancellation.ErrorCode}");
+        //        Console.WriteLine($"CANCELED: ErrorDetails={cancellation.ErrorDetails}");
+        //        Console.WriteLine($"CANCELED: Did you update the subscription info?");
+        //    }
+        //}
+
+        //string transcribedText = result.Text;
+
+        //return transcribedText;
     }
 
     // HELPER METHODS
 
     private async Task<byte[]> GetSpeechAsync(string text)
     {
-        using (var synthesizer = new SpeechSynthesizer(_speechConfig))
+        if (string.IsNullOrEmpty(text))
         {
-            using (var result = await synthesizer.StartSpeakingTextAsync(text).ConfigureAwait(false))
+            return default;
+        }
+
+        using (var synthesizer = new SpeechSynthesizer(_speechConfig, null as AudioConfig))
+        {
+            using (var result = await synthesizer.SpeakTextAsync(text))
             {
-                return result.AudioData;
+                if (result.Reason == ResultReason.SynthesizingAudioCompleted)
+                {
+                    var audioData = result.AudioData;
+                    return audioData;
+                }
+                else
+                {
+                    return default;
+                }
             }
         }
     }
