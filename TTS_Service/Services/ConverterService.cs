@@ -95,7 +95,7 @@ public class ConverterService : IConverterService
 
     public async Task<string> ConvertToText(IFormFile audio)
     {
-        if (audio is null || !audio.ContentType.Equals("audio/wave"))
+        if (audio is null)
         {
             return "NotValid";
         }
@@ -114,7 +114,7 @@ public class ConverterService : IConverterService
 
             var result = JsonConvert.DeserializeObject<SttResult>(responseContent);
 
-            return result.DisplayText;
+            return result.DisplayText ?? "";
         }
 
         return "";

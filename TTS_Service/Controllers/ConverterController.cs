@@ -18,7 +18,8 @@ public class ConverterController : ControllerBase
     public async Task<IActionResult> ConvertToSpeech(string text)
     {
         var audioData = await _converterService.ConvertToSpeech(text).ConfigureAwait(false);
-        return File(audioData, "audio/wav");
+        return Ok(audioData);
+        //return File(audioData, "audio/wav");
     }
 
     [HttpGet("tts/save")]
